@@ -18,7 +18,7 @@ model = genai.GenerativeModel("gemini-2.5-flash")
 SYSTEM_PROMPT = """
 You are an assistant that organises browser tabs into meaningful research clusters.
 
-You will receive a list of browser tabs. Each tab has:
+You will receive browser tabs. Each tab has:
 - title
 - url
 - content
@@ -72,7 +72,13 @@ def health():
 @app.route("/analyse-tabs", methods=["POST"])
 def analyse_tabs():
     data = request.get_json()
-    tabs = data.get("tabs", [])
+
+    if isinstance(data, list):
+        tabs = data
+    elif isinstance(data, dict):
+        tabs = data.get("tabs", [])
+    else:
+        tabs = []
 
     if not tabs:
         return jsonify({"error": "No tabs provided"}), 400

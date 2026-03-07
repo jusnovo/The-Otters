@@ -1,63 +1,105 @@
-document.getElementById('inhaleBtn').addEventListener('click', async () => {
-  const statusEl = document.getElementById('status');
-  const outputEl = document.getElementById('output');
-  statusEl.innerText = "Inhaling... 💨";
+document.addEventListener("DOMContentLoaded", () => {
+  const generateButton = document.getElementById("generate");
+  const status = document.getElementById("status");
+  const mindmap = document.getElementById("mindmap");
 
-  // 1. Get all tabs in the current window
-  const tabs = await chrome.tabs.query({ currentWindow: true });
+  if (!generateButton || !status || !mindmap) {
+    console.error("Popup elements not found.");
+    return;
+  }
 
-  // 2. Map through tabs to extract data
-  const tabData = await Promise.all(tabs.map(async (tab) => {
-    // Skip internal chrome:// pages which we can't scrape
-    if (!tab.url.startsWith('http')) return null;
+  generateButton.addEventListener("click", async () => {
+    status.textContent = "Capturing tabs and generating mind map...";
+    mindmap.innerHTML = "";
 
     try {
-      // 3. Inject a script to get the page's "main" text
-      const [{result}] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          // Grab first 800 chars and clean up extra whitespace
-          return document.body.innerText.substring(0, 800).replace(/\s+/g, ' ');
-        }
+      const tabs = await chrome.tabs.query({});
+
+      const tabData = tabs.map((tab) => ({
+        title: tab.title || "Untitled tab",
+        url: tab.url || "",
+        content: tab.title || ""
+      }));
+
+      const response = await fetch("http://127.0.0.1:5000/analyse-tabs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(tabData)
       });
-      
-      return {
-        title: tab.title,
-        url: tab.url,
-        content: result
-      };
-    } catch (e) {
-      // Fallback if the page blocks scripting (like some high-security sites)
-      return { title: tab.title, url: tab.url, content: "Content restricted" };
+
+      const rawText = await response.text();
+      console.log("RAW BACKEND RESPONSE:", rawText);
+
+      if (!response.ok) {
+        throw new Error(`Backend returned ${response.status}: ${rawText}`);
+      }
+
+      const result = JSON.parse(rawText);
+
+      status.textContent = "Mind map ready.";
+      renderMindMap(result, tabData, mindmap);
+    } catch (error) {
+      console.error("Popup error:", error);
+      status.textContent = "Something went wrong. Open Errors / DevTools.";
     }
-  }));
-
-  // Filter out the nulls (non-website tabs)
-  const finalData = tabData.filter(t => t !== null);
-
-  // 4. Show result for Person 2 (The AI Person)
-  statusEl.innerText = `Successfully captured ${finalData.length} tabs!`;
-  outputEl.style.display = 'block';
-  outputEl.innerText = JSON.stringify(finalData, null, 2);
-  
-  console.log("SEND THIS TO PERSON 2:", finalData);
-
-
-  // 4. Save to Chrome's Internal Storage
-  const stashObject = {
-    timestamp: new Date().toISOString(), // This saves the exact date/time
-    tabs: finalData
-  };
-
-  // We use chrome.storage.local.set to save it "forever" (until deleted)
-  await chrome.storage.local.set({ "last_stash": stashObject });
-
-  // 5. Update the UI to show it's saved
-  statusEl.innerText = `Successfully stashed ${finalData.length} tabs on ${new Date().toLocaleTimeString()}!`;
-  outputEl.style.display = 'block';
-  outputEl.innerText = JSON.stringify(stashObject, null, 2);
-  
-  console.log("DATA SAVED TO STORAGE:", stashObject);
+  });
 });
 
+function renderMindMap(result, tabData, mindmap) {
+  mindmap.innerHTML = "";
 
+  if (!result.clusters || result.clusters.length === 0) {
+    mindmap.innerHTML = "<p>No clusters returned.</p>";
+    return;
+  }
+
+  result.clusters.forEach((cluster) => {
+    const clusterDiv = document.createElement("div");
+    clusterDiv.className = "cluster";
+
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "cluster-title";
+    titleDiv.textContent = cluster.name || "Untitled Cluster";
+
+    const summaryDiv = document.createElement("div");
+    summaryDiv.className = "cluster-summary";
+    summaryDiv.textContent = cluster.summary || "";
+
+    clusterDiv.appendChild(titleDiv);
+    clusterDiv.appendChild(summaryDiv);
+
+    (cluster.tab_indices || []).forEach((index) => {
+      const tab = tabData[index];
+      if (tab) {
+        const tabDiv = document.createElement("div");
+        tabDiv.className = "tab-item";
+        tabDiv.textContent = "• " + tab.title;
+        clusterDiv.appendChild(tabDiv);
+      }
+    });
+
+    mindmap.appendChild(clusterDiv);
+  });
+
+  if (result.relationships && result.relationships.length > 0) {
+    const relationshipsDiv = document.createElement("div");
+    relationshipsDiv.className = "relationships";
+
+    const heading = document.createElement("div");
+    heading.className = "cluster-title";
+    heading.textContent = "Relationships";
+    relationshipsDiv.appendChild(heading);
+
+    result.relationships.forEach((rel) => {
+      const relDiv = document.createElement("div");
+      relDiv.className = "relationship-item";
+      relDiv.textContent =
+        `${rel.source_cluster_id} → ${rel.target_cluster_id}: ${rel.relationship}`;
+      relationshipsDiv.appendChild(relDiv);
+    });
+
+    mindmap.appendChild(relationshipsDiv);
+  }
+}

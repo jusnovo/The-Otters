@@ -41,4 +41,23 @@ document.getElementById('inhaleBtn').addEventListener('click', async () => {
   outputEl.innerText = JSON.stringify(finalData, null, 2);
   
   console.log("SEND THIS TO PERSON 2:", finalData);
+
+
+  // 4. Save to Chrome's Internal Storage
+  const stashObject = {
+    timestamp: new Date().toISOString(), // This saves the exact date/time
+    tabs: finalData
+  };
+
+  // We use chrome.storage.local.set to save it "forever" (until deleted)
+  await chrome.storage.local.set({ "last_stash": stashObject });
+
+  // 5. Update the UI to show it's saved
+  statusEl.innerText = `Successfully stashed ${finalData.length} tabs on ${new Date().toLocaleTimeString()}!`;
+  outputEl.style.display = 'block';
+  outputEl.innerText = JSON.stringify(stashObject, null, 2);
+  
+  console.log("DATA SAVED TO STORAGE:", stashObject);
 });
+
+

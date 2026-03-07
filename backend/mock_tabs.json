@@ -1,0 +1,19 @@
+{
+  "tabs": [
+    {
+      "title": "LLM Prompt Engineering Guide",
+      "url": "https://example.com/prompting",
+      "content": "This article explains structured prompts, output schemas, and task decomposition."
+    },
+    {
+      "title": "Plasmo Chrome Extension Basics",
+      "url": "https://example.com/plasmo",
+      "content": "This tutorial covers creating a Chrome extension using Plasmo and interacting with browser tabs."
+    },
+    {
+      "title": "Knowledge Graphs for Research",
+      "url": "https://example.com/kg",
+      "content": "This page discusses connecting concepts and building graph-based views of linked information."
+    }
+  ]
+}

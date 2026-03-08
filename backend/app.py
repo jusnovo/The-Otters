@@ -3,10 +3,12 @@ import os
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import google.generativeai as genai
+from flask_cors import CORS
 
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app, resources={r"/analyse-tabs": {"origins": "*"}, r"/health": {"origins": "*"}})
 
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
